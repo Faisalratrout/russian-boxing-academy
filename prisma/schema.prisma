@@ -1,0 +1,122 @@
+// Russian Boxing Academy — membership & finance system
+// Schema carries locationId on every core table from day one so a
+// second gym location later is a data-entry task, not a migration.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Location {
+  id            String         @id @default(cuid())
+  name          String
+  address       String?
+  members       Member[]
+  users         User[]
+  transactions  Transaction[]
+  createdAt     DateTime       @default(now())
+}
+
+model Member {
+  id            String         @id @default(cuid())
+  locationId    String
+  location      Location       @relation(fields: [locationId], references: [id])
+  firstName     String
+  lastName      String
+  birthDate     DateTime
+  phone         String?
+  joinDate      DateTime       @default(now())
+  status        MemberStatus   @default(ACTIVE)
+  subscriptions Subscription[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+enum MemberStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Subscription {
+  id           String             @id @default(cuid())
+  memberId     String
+  member       Member             @relation(fields: [memberId], references: [id])
+  planType     SubscriptionPlan
+  price        Decimal            @db.Decimal(10, 2)
+  startDate    DateTime
+  endDate      DateTime
+  status       SubscriptionStatus @default(ACTIVE)
+  transactions Transaction[]
+  notifications NotificationLog[]
+  createdAt    DateTime           @default(now())
+}
+
+enum SubscriptionPlan {
+  ONE_MONTH // 30 JOD
+  TWO_MONTH // 50 JOD
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+}
+
+model Transaction {
+  id             String            @id @default(cuid())
+  locationId     String
+  location       Location          @relation(fields: [locationId], references: [id])
+  type           TransactionType
+  category       TransactionCategory
+  amount         Decimal           @db.Decimal(10, 2)
+  date           DateTime          @default(now())
+  description    String?
+  subscriptionId String?
+  subscription   Subscription?     @relation(fields: [subscriptionId], references: [id])
+  createdById    String
+  createdBy      User              @relation(fields: [createdById], references: [id])
+  createdAt      DateTime          @default(now())
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionCategory {
+  SUBSCRIPTION
+  EQUIPMENT
+  REPAIR
+  GLOVES
+  WRAPS
+  OTHER
+}
+
+model User {
+  id           String        @id @default(cuid())
+  locationId   String
+  location     Location      @relation(fields: [locationId], references: [id])
+  name         String
+  role         UserRole      @default(COACH)
+  phone        String?
+  passwordHash String
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+}
+
+enum UserRole {
+  ADMIN
+  COACH
+}
+
+model NotificationLog {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  flaggedAt      DateTime @default(now())
+  channel        String   @default("in_app") // only channel for MVP
+}
