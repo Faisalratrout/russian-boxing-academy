@@ -39,17 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# Environment
-.env
-.env.local
-!.env.example
-
-# local-only agent tooling (never committed)
-/CLAUDE.md
-graphify-out/
-
-# temporary verification files
-VERIFY_OUTPUT.txt
-*.scratch.*
-
