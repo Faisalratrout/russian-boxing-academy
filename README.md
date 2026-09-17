@@ -64,6 +64,15 @@ and calls the backend's REST API at that base URL — e.g.
 in production. The backend never renders UI; it only exposes
 `app/api/*` route handlers.
 
+## Backend deployment note
+
+**`DATABASE_URL` in production must use the database provider's pooled
+connection string** (e.g. Neon's pooled endpoint), not the direct
+connection string. Backend routes run as Vercel serverless functions —
+each invocation can open its own Postgres connection, and without
+pooling, load will exhaust the connection limit. This is a deployment
+configuration step, not something the code can fix.
+
 ## Data model
 
 Defined in `backend/prisma/schema.prisma`: `Location`, `Member`,

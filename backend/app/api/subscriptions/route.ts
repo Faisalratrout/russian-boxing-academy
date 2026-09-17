@@ -1,12 +1,24 @@
-import { NextResponse } from "next/server";
+import { corsPreflightHandler, withGetHandler, withPostHandler } from "@/lib/api-handler";
+import {
+  createSubscriptionSchema,
+  listSubscriptionsQuerySchema,
+} from "@/lib/validation/subscriptions";
 
 // TODO: GET — list subscriptions (support filtering by status/member)
-export async function GET() {
-  return NextResponse.json({ message: "Not implemented" }, { status: 501 });
-}
+export const GET = withGetHandler(
+  { schema: listSubscriptionsQuerySchema },
+  async () => {
+    return { status: 501, body: { message: "Not implemented" } };
+  }
+);
 
 // TODO: POST — create a subscription (memberId, planType) and auto-log the
 // matching INCOME/SUBSCRIPTION transaction
-export async function POST() {
-  return NextResponse.json({ message: "Not implemented" }, { status: 501 });
-}
+export const POST = withPostHandler(
+  { schema: createSubscriptionSchema, idempotent: true },
+  async () => {
+    return { status: 501, body: { message: "Not implemented" } };
+  }
+);
+
+export const OPTIONS = corsPreflightHandler();
