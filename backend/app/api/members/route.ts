@@ -1,19 +1,43 @@
 import { corsPreflightHandler, withGetHandler, withPostHandler } from "@/lib/api-handler";
 import { createMemberSchema, listMembersQuerySchema } from "@/lib/validation/members";
+import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
-// TODO: GET — list members (support filtering by status, search by name)
 export const GET = withGetHandler(
   { schema: listMembersQuerySchema },
-  async () => {
-    return { status: 501, body: { message: "Not implemented" } };
+  async (_request, { status, search }) => {
+    const where: Prisma.MemberWhereInput = {
+      ...(status && { status }),
+      ...(search && {
+        OR: [
+          { firstName: { contains: search, mode: "insensitive" } },
+          { lastName: { contains: search, mode: "insensitive" } },
+        ],
+      }),
+    };
+
+    const members = await prisma.member.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+    });
+
+    return { status: 200, body: { members } };
   }
 );
 
-// TODO: POST — create a member (firstName, lastName, birthDate, locationId)
 export const POST = withPostHandler(
   { schema: createMemberSchema, idempotent: true },
-  async () => {
-    return { status: 501, body: { message: "Not implemented" } };
+  async (_request, { firstName, lastName, birthDate, locationId }) => {
+    const member = await prisma.member.create({
+      data: {
+        firstName,
+        lastName,
+        birthDate: new Date(birthDate),
+        locationId,
+      },
+    });
+
+    return { status: 201, body: { member } };
   }
 );
 

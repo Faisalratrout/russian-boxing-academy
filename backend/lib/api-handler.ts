@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ZodError, ZodType } from "zod";
 import { getCorsHeaders, isAllowedOrigin } from "./cors";
 import { requireAuth } from "./auth-middleware";
+import { SessionPayload } from "./session";
 import {
   authRateLimit,
   checkRateLimit,
@@ -21,20 +22,30 @@ interface RouteOptions<T> {
   idempotent?: boolean;
 }
 
+interface HandlerContext {
+  user: SessionPayload | null;
+}
+
 type Handler<T> = (
   request: Request,
-  data: T
-) => Promise<{ status: number; body: unknown }>;
+  data: T,
+  context: HandlerContext
+) => Promise<{ status: number; body: unknown; headers?: HeadersInit }>;
 
-/** Shared preamble: CORS origin check, rate limiting, auth. Returns an
- * early NextResponse if the request should be rejected, otherwise null. */
+type ParamsHandler<T> = (
+  request: Request,
+  data: T,
+  params: Record<string, string>,
+  context: HandlerContext
+) => Promise<{ status: number; body: unknown; headers?: HeadersInit }>;
+
 async function runCommonChecks(
   request: Request,
   corsHeaders: Headers,
   options: { isPublic?: boolean; useAuthRateLimit?: boolean }
-): Promise<NextResponse | null> {
+): Promise<{ response: NextResponse } | { response: null; user: SessionPayload | null }> {
   if (!isAllowedOrigin(request)) {
-    return jsonError("Origin not allowed", 403, corsHeaders);
+    return { response: jsonError("Origin not allowed", 403, corsHeaders) };
   }
 
   const limiter = options.useAuthRateLimit ? authRateLimit : generalRateLimit;
@@ -43,17 +54,19 @@ async function runCommonChecks(
   if (!rateLimitResult.success) {
     const headers = new Headers(corsHeaders);
     headers.set("Retry-After", String(rateLimitResult.retryAfterSeconds));
-    return jsonError("Too many requests", 429, headers);
+    return { response: jsonError("Too many requests", 429, headers) };
   }
 
-  if (!options.isPublic) {
-    const auth = requireAuth(request);
-    if (!auth.authenticated) {
-      return jsonError("Unauthorized", 401, corsHeaders);
-    }
+  if (options.isPublic) {
+    return { response: null, user: null };
   }
 
-  return null;
+  const auth = await requireAuth(request);
+  if (!auth.authenticated) {
+    return { response: jsonError("Unauthorized", 401, corsHeaders) };
+  }
+
+  return { response: null, user: auth.user };
 }
 
 export function withGetHandler<T>(
@@ -63,18 +76,18 @@ export function withGetHandler<T>(
   return async function GET(request: Request): Promise<NextResponse> {
     const corsHeaders = getCorsHeaders(request);
 
-    const early = await runCommonChecks(request, corsHeaders, options);
-    if (early) return early;
+    const checks = await runCommonChecks(request, corsHeaders, options);
+    if (checks.response) return checks.response;
 
     try {
       const url = new URL(request.url);
       const query = Object.fromEntries(url.searchParams.entries());
       const data = options.schema.parse(query);
 
-      const result = await handler(request, data);
+      const result = await handler(request, data, { user: checks.user });
       return NextResponse.json(result.body, {
         status: result.status,
-        headers: corsHeaders,
+        headers: mergeHeaders(corsHeaders, result.headers),
       });
     } catch (error) {
       if (error instanceof ZodError) {
@@ -96,8 +109,8 @@ export function withPostHandler<T>(
   return async function POST(request: Request): Promise<NextResponse> {
     const corsHeaders = getCorsHeaders(request);
 
-    const early = await runCommonChecks(request, corsHeaders, options);
-    if (early) return early;
+    const checks = await runCommonChecks(request, corsHeaders, options);
+    if (checks.response) return checks.response;
 
     let idempotencyKey: string | null = null;
 
@@ -116,7 +129,7 @@ export function withPostHandler<T>(
       const rawBody = await request.json().catch(() => null);
       const data = options.schema.parse(rawBody);
 
-      const result = await handler(request, data);
+      const result = await handler(request, data, { user: checks.user });
 
       if (options.idempotent && idempotencyKey) {
         await storeIdempotentResponse(idempotencyKey, {
@@ -127,7 +140,44 @@ export function withPostHandler<T>(
 
       return NextResponse.json(result.body, {
         status: result.status,
-        headers: corsHeaders,
+        headers: mergeHeaders(corsHeaders, result.headers),
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return jsonError(
+          `Invalid request body: ${error.issues.map((i) => i.message).join(", ")}`,
+          400,
+          corsHeaders
+        );
+      }
+      return serverError(error, corsHeaders);
+    }
+  };
+}
+
+export function withPatchHandler<T>(
+  options: RouteOptions<T>,
+  handler: ParamsHandler<T>
+) {
+  return async function PATCH(
+    request: Request,
+    context: { params: Promise<Record<string, string>> }
+  ): Promise<NextResponse> {
+    const corsHeaders = getCorsHeaders(request);
+
+    const checks = await runCommonChecks(request, corsHeaders, options);
+    if (checks.response) return checks.response;
+
+    try {
+      const params = await context.params;
+      const rawBody = await request.json().catch(() => null);
+      const data = options.schema.parse(rawBody);
+
+      const result = await handler(request, data, params, { user: checks.user });
+
+      return NextResponse.json(result.body, {
+        status: result.status,
+        headers: mergeHeaders(corsHeaders, result.headers),
       });
     } catch (error) {
       if (error instanceof ZodError) {
@@ -147,4 +197,11 @@ export function corsPreflightHandler() {
     const corsHeaders = getCorsHeaders(request);
     return new NextResponse(null, { status: 204, headers: corsHeaders });
   };
+}
+
+function mergeHeaders(base: Headers, extra?: HeadersInit): Headers {
+  if (!extra) return base;
+  const merged = new Headers(base);
+  new Headers(extra).forEach((value, key) => merged.set(key, value));
+  return merged;
 }

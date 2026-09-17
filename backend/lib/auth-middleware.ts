@@ -1,22 +1,26 @@
-// TODO: replace with real session/token verification once POST /api/auth
-// issues sessions. For now this only checks that a bearer token is present
-// and well-formed — it does not yet verify it against a real session store.
-export function verifyAuthToken(token: string): boolean {
-  return token.length > 0;
+import { SESSION_COOKIE_NAME, SessionPayload, verifySessionToken } from "./session";
+
+function getCookie(request: Request, name: string): string | null {
+  const header = request.headers.get("cookie");
+  if (!header) return null;
+
+  for (const part of header.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return decodeURIComponent(rest.join("="));
+  }
+  return null;
 }
 
-export function requireAuth(
+export async function getSessionUser(request: Request): Promise<SessionPayload | null> {
+  const token = getCookie(request, SESSION_COOKIE_NAME);
+  if (!token) return null;
+  return verifySessionToken(token);
+}
+
+export async function requireAuth(
   request: Request
-): { authenticated: true } | { authenticated: false } {
-  const header = request.headers.get("Authorization");
-  if (!header || !header.startsWith("Bearer ")) {
-    return { authenticated: false };
-  }
-
-  const token = header.slice("Bearer ".length).trim();
-  if (!token || !verifyAuthToken(token)) {
-    return { authenticated: false };
-  }
-
-  return { authenticated: true };
+): Promise<{ authenticated: true; user: SessionPayload } | { authenticated: false }> {
+  const user = await getSessionUser(request);
+  if (!user) return { authenticated: false };
+  return { authenticated: true, user };
 }
