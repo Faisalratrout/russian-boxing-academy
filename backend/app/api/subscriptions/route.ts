@@ -3,21 +3,54 @@ import {
   createSubscriptionSchema,
   listSubscriptionsQuerySchema,
 } from "@/lib/validation/subscriptions";
+import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import {
+  createSubscriptionWithTransaction,
+  MemberInactiveError,
+  MemberNotFoundError,
+  SubscriptionAlreadyActiveError,
+} from "@/lib/subscriptions";
 
-// TODO: GET — list subscriptions (support filtering by status/member)
 export const GET = withGetHandler(
   { schema: listSubscriptionsQuerySchema },
-  async () => {
-    return { status: 501, body: { message: "Not implemented" } };
+  async (_request, { status, memberId }) => {
+    const where: Prisma.SubscriptionWhereInput = {
+      ...(status && { status }),
+      ...(memberId && { memberId }),
+    };
+
+    const subscriptions = await prisma.subscription.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+    });
+
+    return { status: 200, body: { subscriptions } };
   }
 );
 
-// TODO: POST — create a subscription (memberId, planType) and auto-log the
-// matching INCOME/SUBSCRIPTION transaction
 export const POST = withPostHandler(
   { schema: createSubscriptionSchema, idempotent: true },
-  async () => {
-    return { status: 501, body: { message: "Not implemented" } };
+  async (_request, { memberId, planType }, { user }) => {
+    try {
+      const { subscription, transaction } = await createSubscriptionWithTransaction(
+        memberId,
+        planType,
+        user!.userId
+      );
+      return { status: 201, body: { subscription, transaction } };
+    } catch (error) {
+      if (error instanceof MemberNotFoundError) {
+        return { status: 404, body: { error: "Member not found" } };
+      }
+      if (error instanceof MemberInactiveError) {
+        return { status: 400, body: { error: "Member is not active" } };
+      }
+      if (error instanceof SubscriptionAlreadyActiveError) {
+        return { status: 409, body: { error: error.message } };
+      }
+      throw error;
+    }
   }
 );
 

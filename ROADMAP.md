@@ -20,8 +20,9 @@ add that only if a specific query proves slow under real load.
 - [x] Members: real GET (status + search filters), real POST (Prisma create)
 - [x] Members: PATCH for updates + soft-deactivate (status: INACTIVE, never hard-delete)
 - [x] Seed script: one Location, one ADMIN user, password from ADMIN_SEED_PASSWORD env var, no sample data
-- [ ] Subscriptions: POST creates subscription + matching INCOME transaction in one Prisma `$transaction`; endDate computed from planType
-- [ ] Subscriptions: GET with status/member filters
+- [x] Subscriptions: POST creates subscription + matching INCOME transaction in one Prisma `$transaction`; endDate computed from planType
+- [x] Subscriptions: GET with status/member filters
+- [ ] Subscriptions: early renewal/extension flow (deferred — currently blocked, not designed)
 - [ ] Transactions: POST for EXPENSE only (locked via schema), GET with type/category/date filters
 - [ ] Notifications: daily expiry-check logic — flag EXPIRING_SOON within 3-day window, flag EXPIRED past endDate, write NotificationLog rows, idempotent per cycle
 - [ ] Notifications endpoint secured for Vercel Cron via CRON_SECRET header check
