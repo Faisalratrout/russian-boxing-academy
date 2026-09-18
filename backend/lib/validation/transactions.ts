@@ -23,7 +23,6 @@ export const createTransactionSchema = z.object({
   amount: z.number().positive("amount must be positive"),
   description: z.string().optional(),
   locationId: z.string().min(1, "locationId is required"),
-  createdById: z.string().min(1, "createdById is required"),
 });
 
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
