@@ -15,6 +15,14 @@ export const authRateLimit = new Ratelimit({
   prefix: "ratelimit:auth",
 });
 
+// Cron-triggered expiry check: not user-facing, but capped in case
+// CRON_SECRET ever leaks.
+export const cronRateLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(10, "1 m"),
+  prefix: "ratelimit:cron",
+});
+
 export function getClientIp(request: Request): string {
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) return forwardedFor.split(",")[0].trim();

@@ -24,8 +24,8 @@ add that only if a specific query proves slow under real load.
 - [x] Subscriptions: GET with status/member filters
 - [ ] Subscriptions: early renewal/extension flow (deferred — currently blocked, not designed)
 - [x] Transactions: POST for EXPENSE only (locked via schema), GET with type/category/date filters
-- [ ] Notifications: daily expiry-check logic — flag EXPIRING_SOON within 3-day window, flag EXPIRED past endDate, write NotificationLog rows, idempotent per cycle
-- [ ] Notifications endpoint secured for Vercel Cron via CRON_SECRET header check
+- [x] Notifications: daily expiry-check logic — flag EXPIRING_SOON within 3-day window, flag EXPIRED past endDate, write NotificationLog rows, idempotent per cycle
+- [x] Notifications endpoint secured for Vercel Cron via CRON_SECRET header check
 
 ## Phase 2 — Frontend
 
