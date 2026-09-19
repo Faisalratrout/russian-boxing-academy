@@ -29,8 +29,8 @@ add that only if a specific query proves slow under real load.
 
 ## Phase 2 — Frontend
 
-- [ ] Typed API client wrapper (base URL from env, cookie credentials included, centralized error handling)
-- [ ] Login screen wired to real auth cookie flow
+- [x] Typed API client wrapper (base URL from env, cookie credentials included, centralized error handling)
+- [x] Login screen wired to real auth cookie flow
 - [ ] Member registration: form + list wired to real API
 - [ ] backend/lib/cors.ts only allows GET/POST/OPTIONS; add PATCH before building the Members edit UI
 - [ ] Subscription creation flow, tied to a member
