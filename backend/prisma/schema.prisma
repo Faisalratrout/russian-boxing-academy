@@ -114,9 +114,15 @@ enum UserRole {
 }
 
 model NotificationLog {
-  id             String   @id @default(cuid())
+  id             String             @id @default(cuid())
   subscriptionId String
-  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
-  flaggedAt      DateTime @default(now())
-  channel        String   @default("in_app") // only channel for MVP
+  subscription   Subscription       @relation(fields: [subscriptionId], references: [id])
+  status         NotificationStatus
+  flaggedAt      DateTime           @default(now())
+  channel        String             @default("in_app") // only channel for MVP
+}
+
+enum NotificationStatus {
+  EXPIRING_SOON
+  EXPIRED
 }

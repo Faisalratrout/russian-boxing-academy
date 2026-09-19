@@ -42,3 +42,11 @@ Never sacrifice a higher priority for a lower one.
 
 - At the start of every session, read LAYER1.md and LAYER2.md in full before doing anything else.
 - Before writing any code, present a plan (files to be touched, approach, open questions) and STOP. Wait for explicit approval before writing code.
+
+## Implementation Standards
+
+- No mock/fake/placeholder data anywhere in implementation code — every feature built against real Prisma queries from the start.
+- No hardcoded secrets, credentials, or API keys anywhere — env vars only, always.
+- No route implemented without its validation + rate-limit + auth scaffolding already wired (already the established pattern).
+- Minimal comments: only where the *why* isn't obvious from the code itself. No comments that just restate what the next line does.
+- After any task is implemented, built successfully, and committed, update ROADMAP.md: change that item's checkbox from [ ] to [x]. Never check an item off before it's actually committed. Never check off an item that wasn't part of the current session's work, even if it looks related.
