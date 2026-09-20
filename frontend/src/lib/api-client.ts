@@ -15,11 +15,12 @@ export function isApiError(error: unknown): error is ApiError {
 interface RequestOptions {
   method?: "GET" | "POST";
   body?: unknown;
+  headers?: Record<string, string>;
 }
 
 export async function apiFetch<T>(
   path: string,
-  { method = "GET", body }: RequestOptions = {}
+  { method = "GET", body, headers }: RequestOptions = {}
 ): Promise<T> {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL;
   if (!baseUrl) {
@@ -31,7 +32,7 @@ export async function apiFetch<T>(
     response = await fetch(`${baseUrl}${path}`, {
       method,
       credentials: "include",
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers: body === undefined ? headers : { "Content-Type": "application/json", ...headers },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
